@@ -43,4 +43,7 @@ else
     clr_h=${ppl}
 fi
 # set PS1
-export PS1="${gry}[${ylw}\t${gry}] ${clr_u}\u${gry}@${clr_h}\h${gry}:${grn}\w ${clr_u}\\$> ${clr}"
+# w/o git
+# export PS1="${gry}[${ylw}\t${gry}] ${clr_u}\u${gry}@${clr_h}\h${gry}:${grn}\w ${clr_u}\\$> ${clr}"
+# w/ git
+export PS1="${gry}[${ylw}\t${gry}] ${clr_u}\u${gry}@${clr_h}\h${gry}:${grn}\w ${ylw}\$(__git_ps1 '(%s)')${clr_u}\\$> ${clr}"
