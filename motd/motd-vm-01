@@ -3,11 +3,11 @@
 # time of day
 HOUR=$(date +"%H")
 if [ $HOUR -lt 12  -a $HOUR -ge 0 ] 
-then    TIME="morning"
+then    TIME="Morgen"
 elif [ $HOUR -lt 17 -a $HOUR -ge 12 ] 
-then    TIME="afternoon"
+then    TIME="Tag"
 else 
-    TIME="evening"
+    TIME="Abend"
 fi
 
 #System uptime
@@ -34,8 +34,10 @@ echo "$(tput setaf 2)
           #+#+#+#   #+#       #+#    #+#    #+# #+#    #+#    #+#   #+#   #+#                                                                                                                                                                                             
             ###     ###       ###    #########  #########      #######  #######
 
+
 $(tput setaf 4)
-        `date +"%A, %e %B %Y, %r"`
+        Guten $TIME!
+        Es ist `date +"%A, der %e. %B %Y um %rUhr."`
 $(tput setaf 6)        
         =======================================================================
         Hostname............: `uname -n` 
