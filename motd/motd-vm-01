@@ -1,0 +1,56 @@
+#!/bin/sh
+
+# time of day
+HOUR=$(date +"%H")
+if [ $HOUR -lt 12  -a $HOUR -ge 0 ] 
+then    TIME="morning"
+elif [ $HOUR -lt 17 -a $HOUR -ge 12 ] 
+then    TIME="afternoon"
+else 
+    TIME="evening"
+fi
+
+#System uptime
+uptime=`cat /proc/uptime | cut -f1 -d.`
+upDays=$((uptime/60/60/24))
+upHours=$((uptime/60/60%24))
+upMins=$((uptime/60%60))
+upSecs=$((uptime%60))
+
+#System load
+LOAD1=`cat /proc/loadavg | awk {'print $1'}`
+LOAD5=`cat /proc/loadavg | awk {'print $2'}`
+LOAD15=`cat /proc/loadavg | awk {'print $3'}`
+
+
+echo "$(tput setaf 2)
+
+
+        :::     ::: ::::    ::::     :::::::::  :::::::::      :::::::    :::  
+        :+:     :+: +:+:+: :+:+:+    :+:    :+: :+:    :+:    :+:   :+: :+:+:  
+        +:+     +:+ +:+ +:+:+ +:+    +:+    +:+ +:+    +:+    +:+  :+:+   +:+  
+        +#+     +:+ +#+  +:+  +#+    +#+    +:+ +#++:++#+     +#+ + +:+   +#+  
+         +#+   +#+  +#+       +#+    +#+    +#+ +#+    +#+    +#+#  +#+   +#+  
+          #+#+#+#   #+#       #+#    #+#    #+# #+#    #+#    #+#   #+#   #+#                                                                                                                                                                                             
+            ###     ###       ###    #########  #########      #######  #######
+
+$(tput setaf 4)
+        `date +"%A, %e %B %Y, %r"`
+$(tput setaf 6)        
+        =======================================================================
+        Hostname............: `uname -n` 
+        IP Address..........: `ip a | grep glo | awk '{print $2}' | head -1 | cut -f1 -d/`
+        Release.............: `cat /etc/redhat-release`
+        Users...............: Currently `users | wc -w` user(s) logged on
+        =======================================================================
+        System uptime.......: $upDays days $upHours hours $upMins minutes $upSecs seconds
+        Running Processes...: `ps ax | wc -l | tr -d " "`
+        CPU usage...........: $LOAD1, $LOAD5, $LOAD15 (1, 5, 15 min)
+        Memory used.........: `cat /proc/meminfo | grep MemFree | awk {'print $2'}`kB (Free) / `cat /proc/meminfo | grep MemTotal | awk {'print $2'}`kB (Total)
+        Disk space on /.....: `df -Ph | grep sda2 | awk '{print $4}' | tr -d '\n'` remaining
+        Swap in use.........: `free -m | tail -n 1 | awk '{print $3}'` MB
+        =======================================================================
+
+
+$(tput sgr0)"
+
