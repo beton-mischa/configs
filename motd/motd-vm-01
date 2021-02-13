@@ -1,4 +1,124 @@
-#!/bin/sh
+#!/bin/bash
+
+set +u
+# avoid globbing (expansion of *)
+set -f
+
+# unalias all
+unalias which 2>/dev/null
+unalias awk 2>/dev/null
+unalias cut 2>/dev/null
+unalias dirname 2>/dev/null
+unalias egrep 2>/dev/null
+unalias sed 2>/dev/null
+unalias tr 2>/dev/null
+unalias hostname 2>/dev/null
+unalias sort 2>/dev/null
+unalias uniq 2>/dev/null
+unalias basename 2>/dev/null
+unalias uname 2>/dev/null
+unalias echo 2>/dev/null
+unalias netstat 2>/dev/null
+
+# platform settings
+AWK_BIN=$( command -v awk )
+BASENAME_BIN=$( command -v basename )
+CAT_BIN=$( command -v cat)
+SED_BIN=$( command -v sed )
+SORT_BIN=$( command -v sort )
+UNIQ_BIN=$( command -v uniq )
+CUT_BIN=$( command -v cut )
+GREP_BIN=$( command -v egrep )
+ALIAS_BIN=$( command -v alias )
+HOSTNAME_BIN="$( command -v hostname ) -s"
+UNAME_BIN=$( command -v uname )
+WHOAMI_BIN=$( command -v whoami )
+GETENT_BIN=$( command -v getent )
+ID_BIN=$( command -v id )
+ENV_BIN=$( command -v env )
+LSCPU_BIN=$( command -v lscpu)
+NETSTAT_BIN=$( command -v netstat )
+GETCONF_BIN=$( command -v getconf )
+IP_BIN=$( command -v ip )
+HNC_BIN=$( command -v hostnamectl )
+LSBLK_BIN=$( command -v lsblk )
+STAT_BIN=$( command -v stat )
+IP_BIN=$( command -v ip )
+ETHT_BIN=$( command -v ethtool )
+DMI_BIN=$( command -v dmidecode)
+DF_BIN=$( command -v df )
+FREE_BIN=$( command -v free )
+TR_BIN=$( command -v tr )
+SU_BIN=$( command -v su )
+SYSCTL_BIN=$( command -v systemctl )
+YUM_BIN=$( command -v yum )
+PWD_BIN=$( command -v pwd )
+WC_BIN=$( command -v wc )
+FW_BIN=$( command -v firewall-cmd )
+HEAD_BIN=$( command -v head)
+
+
+# shell-specific settings
+# csh stores name of shell in ${SHELL} instead of ${SHELL}
+FOUND_SHELL=$( ${BASENAME_BIN} "${SHELL}" 2>/dev/null )
+if [ "${FOUND_SHELL}X" = "X" ]; then
+    FOUND_SHELL=$( ${BASENAME_BIN} "${SHELL}" )
+fi
+ 
+case ${FOUND_SHELL} in
+     bash|sh|ksh)
+         export EXPORT=export
+         ;;
+    csh|tcsh)
+        export EXPORT=set
+        ;;
+esac
+
+# tell bash not to store duplicates
+${EXPORT} HISTCONTROL=ignoreboth
+ 
+case "$( ${UNAME_BIN} -s )" in
+    Linux)
+        export ECHO_BIN=$( which echo)" -e"
+        ;;
+    *)
+        export ECHO_BIN=$( which echo)
+        ;;
+esac
+
+
+#
+#  CONFIGURATION
+#-------------------------------------------------------------------------------
+
+LIMIT_DISK_Y=60
+LIMIT_DISK_R=80
+
+LIMIT_MEM_Y=60
+LIMIT_MEM_R=80
+
+LIMIT_L01_Y=4
+LIMIT_L01_R=6
+LIMIT_L05_Y=2
+LIMIT_L05_R=4
+LIMIT_L15_Y=1
+LIMIT_L15_R=2
+
+LIMIT_SWP_Y=1
+LIMIT_SWP_R=2
+
+declare -r STROK="\e[32m"
+declare -r STRWN="\e[33m"
+declare -r STRCR="\e[31m"
+declare -r STRIF="\e[34m"
+declare -r STRCL="\e[0m"
+declare -r STRTX="\e[36m"
+
+
+
+#
+# COLLECT DATA
+#-------------------------------------------------------------------------------
 
 # time of day
 HOUR=$(date +"%H")
@@ -10,49 +130,143 @@ else
     TIME="Abend"
 fi
 
+RELEASE="no release data found"
+if [ -f /etc/redhat-release ]; then
+    RELEASE=`cat /etc/redhat-release`
+fi
+
 #System uptime
-uptime=`cat /proc/uptime | cut -f1 -d.`
-upDays=$((uptime/60/60/24))
-upHours=$((uptime/60/60%24))
-upMins=$((uptime/60%60))
-upSecs=$((uptime%60))
+UPTIME=`cat /proc/uptime | cut -f1 -d.`
+UPD=$((UPTIME/60/60/24))
+UPH=$((UPTIME/60/60%24))
+UPM=$((UPTIME/60%60))
+UPS=$((UPTIME%60))
 
 #System load
-LOAD1=`cat /proc/loadavg | awk {'print $1'}`
-LOAD5=`cat /proc/loadavg | awk {'print $2'}`
+LOAD01=`cat /proc/loadavg | awk {'print $1'}`
+LOAD05=`cat /proc/loadavg | awk {'print $2'}`
 LOAD15=`cat /proc/loadavg | awk {'print $3'}`
 
+# determinig colors for cpu load
+if (( $(echo "${LOAD01} < ${LIMIT_L01_Y}" | bc -l) )); then
+    C_L01=${STROK}
+elif (( $(echo "${LOAD01} < ${LIMIT_L01_R}" | bc -l) )); then
+    C_L01=${STRWN}
+else
+    C_L01=${STRCR}
+fi
 
-echo "$(tput setaf 2)
+if (( $( echo "${LOAD05} < ${LIMIT_L05_Y}" | bc -l ) )); then
+    C_L05=${STROK}
+elif (( $( echo "${LOAD05} < ${LIMIT_L05_R}" | bc -l ) )); then
+    C_L05=${STRWN}
+else
+    C_L05=${STRCR}
+fi
+
+if (( $( echo "${LOAD15} < ${LIMIT_L15_Y}" | bc -l ) )); then
+    C_L15=${STROK}
+elif (( $( echo "${LOAD15} < ${LIMIT_L15_R}" | bc -l ) )); then
+    C_L15=${STRWN}
+else
+    C_L15=${STRCR}
+fi
+
+MEM_TOTL=$( free -m | grep Mem | awk '{print $2}' )
+MEM_USED=$( free -m | grep Mem | awk '{print $3}' )
+MEM_FREE=$( free -m | grep Mem | awk '{print $4}' )
+declare -i MEM_PUSED=${MEM_USED}*100/${MEM_TOTL}
+
+if (( $( echo "${MEM_PUSED} < ${LIMIT_MEM_Y}" | bc -l ) )); then
+    C_MEM=${STROK}
+elif (( $( echo "${MEM_PUSED} < ${LIMIT_MEM_R}" | bc -l ) )); then
+    C_MEM=${STRWN}
+else
+    C_MEM=${STRCR}
+fi
+
+VOL_DEV=( $( df -B G -P -T | grep 'ext\|fat\|xfs' | awk '{print $1}' | xargs ) )
+d=0
+while [ ${d} -lt ${#VOL_DEV[@]} ]; do
+    VOL_MNT[${d}]="$( df -B G -P -T | grep ${VOL_DEV[${d}]} | awk '{print $7}' )"
+    VOL_FLS[${d}]="$( df -B G -P -T | grep ${VOL_DEV[${d}]} | awk '{print $2}' )"
+    VOL_USE[${d}]="$( df -B G -P -T | grep ${VOL_DEV[${d}]} | awk '{print $6}' | tr -d '%' )"
+    if (( $( echo "${VOL_USE[${d}]} < ${LIMIT_DISK_Y}" | bc -l ) )); then
+        C_DISK[${d}]=${STROK}
+    elif (( $( echo "${VOL_USE[${d}]} < ${LIMIT_DISK_Y}" | bc -l ) )); then
+        C_DISK[${d}]=${STRWN}
+    else
+        C_DISK[${d}]=${STRCR}
+    fi
+    ((d++)) 
+done
+
+#
+# OUTPUT
+#-------------------------------------------------------------------------------
+
+# HOSTNAME
+${ECHO_BIN} "${STROK}
 
 
-        :::     ::: ::::    ::::     :::::::::  :::::::::      :::::::    :::  
-        :+:     :+: +:+:+: :+:+:+    :+:    :+: :+:    :+:    :+:   :+: :+:+:  
-        +:+     +:+ +:+ +:+:+ +:+    +:+    +:+ +:+    +:+    +:+  :+:+   +:+  
-        +#+     +:+ +#+  +:+  +#+    +#+    +:+ +#++:++#+     +#+ + +:+   +#+  
-         +#+   +#+  +#+       +#+    +#+    +#+ +#+    +#+    +#+#  +#+   +#+  
-          #+#+#+#   #+#       #+#    #+#    #+# #+#    #+#    #+#   #+#   #+#                                                                                                                                                                                             
+        :::     ::: ::::    ::::     :::::::::  :::::::::      :::::::    :::
+        :+:     :+: +:+:+: :+:+:+    :+:    :+: :+:    :+:    :+:   :+: :+:+:
+        +:+     +:+ +:+ +:+:+ +:+    +:+    +:+ +:+    +:+    +:+  :+:+   +:+
+        +#+     +:+ +#+  +:+  +#+    +#+    +:+ +#++:++#+     +#+ + +:+   +#+
+         +#+   +#+  +#+       +#+    +#+    +#+ +#+    +#+    +#+#  +#+   +#+
+          #+#+#+#   #+#       #+#    #+#    #+# #+#    #+#    #+#   #+#   #+#
             ###     ###       ###    #########  #########      #######  #######
+"
 
-
-$(tput setaf 4)
+# GREETING
+${ECHO_BIN} "${STRIF}
         Guten $TIME!
         Es ist `date +"%A, der %e. %B %Y um %rUhr."`
-$(tput setaf 6)        
-        =======================================================================
+"
+
+# HOST DATA
+${ECHO_BIN} "${STRTX}
+        ${STRIF}=======================================================================${STRTX}
         Hostname............: `uname -n` 
         IP Address..........: `ip a | grep glo | awk '{print $2}' | head -1 | cut -f1 -d/`
-        Release.............: `cat /etc/redhat-release`
-        Users...............: Currently `users | wc -w` user(s) logged on
-        =======================================================================
-        System uptime.......: $upDays days $upHours hours $upMins minutes $upSecs seconds
+        Release.............: ${RELEASE}
+        Users...............: `users | wc -w` user(s) logged on
+        ${STRIF}=======================================================================${STRTX}
+        System uptime.......: ${UPD} days   ${UPH} hours   ${UPM} minutes   ${UPS} seconds
         Running Processes...: `ps ax | wc -l | tr -d " "`
-        CPU usage...........: $LOAD1, $LOAD5, $LOAD15 (1, 5, 15 min)
-        Memory used.........: `cat /proc/meminfo | grep MemFree | awk {'print $2'}`kB (Free) / `cat /proc/meminfo | grep MemTotal | awk {'print $2'}`kB (Total)
-        Disk space on /.....: `df -Ph | grep sda2 | awk '{print $4}' | tr -d '\n'` remaining
-        Swap in use.........: `free -m | tail -n 1 | awk '{print $3}'` MB
-        =======================================================================
+        CPU usage...........: 1 min: ${C_L01}${LOAD01}${STRTX}       5 min: ${C_L05}${LOAD05}${STRTX}       15 min: ${C_L15}${LOAD15}${STRTX}
+        Memory used.........: total mem: ${MEM_TOTL} mb   used percentage: ${C_MEM}${MEM_PUSED}${STRTX}
+        Swap in use.........: `free -m | tail -n 1 | awk '{print $3}'` mb
+        ${STRIF}=======================================================================${STRTX}"
+
+d=0
+for i in "${VOL_DEV[@]}"
+do
+    DIST="\t"
+    if [ "${#VOL_MNT[${d}]}" -eq 1 ]; then
+        DIST="\t\t"
+    fi
+    echo -e "        Device ${VOL_DEV[${d}]}.....: ${VOL_MNT[${d}]}${DIST}[${VOL_FLS[${d}]}]       ${C_DISK[${d}]}${VOL_USE[${d}]}${STRTX} % in use"
+   ((d++))
+done
+
+${ECHO_BIN} "        ${STRIF}=======================================================================${STRTX}
+$(tput sgr0)
+"
 
 
-$(tput sgr0)"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
