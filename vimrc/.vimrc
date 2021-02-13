@@ -25,11 +25,11 @@ call vundle#begin()
     Plugin 'airblade/vim-gitgutter'
     Plugin 'mhinz/vim-signify'
     call vundle#end()
-filetype plugin indent on
+" keep indentation disabled - fucks shit up every time
+"filetype plugin indent on
 
 "" VIM settings
 "=====================================================
-" keep backspace working
 set backspace=indent,eol,start
 syntax enable
 " tabs
@@ -37,10 +37,6 @@ set tabstop=4
 set expandtab
 set ruler
 set ttyfast
-" Enable filetype plugins
-"filetype indent on
-"filetype plugin on
-set autoindent
 set cursorline
 set showmatch
 set enc=utf-8
@@ -58,6 +54,14 @@ set laststatus=2
 set nobackup
 set nowb
 set noswapfile
+" make special chars visible
+" - line breaks
+set listchars=eol:¶
+" - spaces
+set lcs+=space:·
+"set list 
+" toggle set list
+nnoremap <F2> :set list!<CR>
 
 "" Style settings
 "=====================================================
